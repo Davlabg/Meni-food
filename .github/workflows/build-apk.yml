@@ -1,0 +1,37 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build
+        run: gradle -p android assembleDebug
+      - name: Rename
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk recepti.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recepti-apk
+          path: recepti.apk
+      # Objavljuje APK na stalnom linku: .../releases/latest/download/recepti.apk
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk recepti.apk --target "$GITHUB_SHA" --title "Recepti APK" --notes "Automatski build iz $GITHUB_SHA" --latest

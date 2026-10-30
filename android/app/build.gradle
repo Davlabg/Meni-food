@@ -1,0 +1,36 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'rs.recepti.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'rs.recepti.app'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    // Stalni ključ za potpis, da bi nova verzija APK-a mogla da se instalira preko stare
+    signingConfigs {
+        debug {
+            storeFile file('recepti-debug.keystore')
+            storePassword 'android'
+            keyAlias 'recepti'
+            keyPassword 'android'
+        }
+    }
+
+    sourceSets {
+        // Ista web aplikacija koja radi i na Windows-u (folder recepti/app)
+        main.assets.srcDirs = ['../../app']
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#b4532a">
+<title>Recepti i kalkulacija</title>
+<style>
+:root{
+  --bg:#f7f3ee; --card:#fff; --ink:#2a2420; --muted:#7a6f66; --line:#e6ddd3;
+  --accent:#b4532a; --accent-ink:#fff; --warn:#b3261e; --soft:#f1e6dc;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#1c1917; --card:#26221f; --ink:#f2ece6; --muted:#a89d93; --line:#3a332e;
+    --accent:#e07a4a; --accent-ink:#1c1917; --warn:#ff8a80; --soft:#332b25;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-ink);padding:12px 16px 0;padding-top:max(12px,env(safe-area-inset-top))}
+header h1{margin:0 0 6px;font-size:19px}
+nav{display:flex;gap:4px;max-width:900px}
+nav button{flex:1;background:transparent;border:0;color:inherit;opacity:.75;padding:10px 4px;font-size:15px;font-weight:600;border-bottom:3px solid transparent;cursor:pointer}
+nav button.on{opacity:1;border-bottom-color:currentColor}
+main{max-width:900px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:120px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-width:0}
+textarea{min-height:90px;resize:vertical}
+label.f{display:block;font-size:13px;color:var(--muted);margin:8px 0 3px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;white-space:nowrap;display:inline-block}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--warn)}
+.btn.sm{padding:5px 10px;font-size:14px}
+.muted{color:var(--muted);font-size:14px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:13px;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.list-item{display:flex;justify-content:space-between;gap:10px;align-items:center;cursor:pointer}
+.list-item h3{margin:0;font-size:17px}
+.price{font-weight:700;font-size:18px;color:var(--accent);white-space:nowrap;text-align:right}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--soft);border-radius:10px;padding:10px 12px}
+.stat .k{font-size:13px;color:var(--muted)}
+.stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .v.big{font-size:26px;color:var(--accent)}
+.warn{color:var(--warn);font-size:13px}
+.hidden{display:none!important}
+.ing-row{display:grid;grid-template-columns:1fr 90px 76px 30px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+.ing-row .info{grid-column:1/-1;font-size:13px;color:var(--muted)}
+@media (max-width:560px){.ing-row{grid-template-columns:1fr 76px 30px}.ing-row input[data-k=name]{grid-column:1/-1}}
+.x{border:0;background:transparent;color:var(--warn);font-size:22px;cursor:pointer;padding:0;line-height:1}
+.table-wrap{overflow-x:auto}
+h2{font-size:18px;margin:0 0 10px}
+code{background:var(--soft);padding:1px 4px;border-radius:4px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:20;font-size:15px;max-width:90vw}
+.file-btn input{display:none}
+@media print{header,.noprint{display:none!important} .card{border:0} body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍳 Recepti i kalkulacija</h1>
+  <nav>
+    <button data-tab="jela" class="on">Jela</button>
+    <button data-tab="namirnice">Namirnice</button>
+    <button data-tab="podesavanja">Uvoz / Izvoz</button>
+  </nav>
+</header>
+
+<main>
+<!-- JELA -->
+<section id="tab-jela">
+  <div id="recipe-list-view">
+    <div class="row" style="margin-bottom:12px">
+      <input id="recipe-search" class="grow" placeholder="Pretraži jela…">
+      <button class="btn primary" id="new-recipe">+ Novo jelo</button>
+    </div>
+    <div id="recipe-list"></div>
+  </div>
+
+  <div id="recipe-edit-view" class="hidden">
+    <div class="row noprint" style="margin-bottom:12px">
+      <button class="btn" id="back-to-list">← Nazad</button>
+      <span class="grow"></span>
+      <button class="btn" id="dup-recipe">Kopiraj</button>
+      <button class="btn" id="print-recipe">Štampaj</button>
+      <button class="btn danger" id="delete-recipe">Obriši</button>
+    </div>
+    <div class="card">
+      <label class="f">Naziv jela</label>
+      <input id="r-name" placeholder="npr. Karbonara">
+      <div class="row">
+        <div class="grow"><label class="f">Kategorija</label><input id="r-cat" placeholder="npr. Glavno jelo"></div>
+        <div style="width:140px"><label class="f">Broj porcija</label><input id="r-portions" inputmode="decimal" value="10"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sastojci</h2>
+      <datalist id="ing-names"></datalist>
+      <div id="ing-rows"></div>
+      <div class="row noprint" style="margin-top:10px">
+        <button class="btn sm" id="add-ing">+ Dodaj sastojak</button>
+      </div>
+      <p class="muted noprint">Upiši naziv ili šifru (OCIS) namirnice. Količina je za ceo recept (sve porcije).</p>
+    </div>
+
+    <div class="card">
+      <h2>Kalkulacija</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Cena koštanja (ceo recept)</div><div class="v" id="c-total">–</div></div>
+        <div class="stat"><div class="k">Cena koštanja po porciji</div><div class="v big" id="c-portion">–</div></div>
+        <div class="stat"><div class="k">Predlog prodajne cene / porcija</div><div class="v" id="c-sell">–</div></div>
+      </div>
+      <div class="row noprint" style="margin-top:10px">
+        <div style="width:180px"><label class="f">Udeo namirnica u ceni (%)</label><input id="r-foodcost" inputmode="decimal"></div>
+        <p class="muted grow" style="margin:24px 0 0">Prodajna cena = cena po porciji ÷ udeo. Npr. 30% → namirnice čine 30% prodajne cene.</p>
+      </div>
+      <div id="c-warn" class="warn" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Postupak</h2>
+      <textarea id="r-steps" placeholder="Opis pripreme…"></textarea>
+    </div>
+  </div>
+</section>
+
+<!-- NAMIRNICE -->
+<section id="tab-namirnice" class="hidden">
+  <div class="card">
+    <h2>Lista sastojaka</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input id="ing-search" class="grow" placeholder="Pretraži po nazivu ili šifri…">
+      <button class="btn primary" id="new-ing">+ Dodaj</button>
+    </div>
+    <div class="card hidden" id="ing-form" style="background:var(--soft)">
+      <h2 id="ing-form-title">Namirnica</h2>
+      <div class="row">
+        <div style="width:140px"><label class="f">Šifra (OCIS)</label><input id="f-code" inputmode="numeric"></div>
+        <div class="grow"><label class="f">Naziv</label><input id="f-name"></div>
+      </div>
+      <div class="row">
+        <div style="width:120px"><label class="f">Jedinica</label><select id="f-unit"><option value="kg">kg</option><option value="l">l</option><option value="kom">kom</option></select></div>
+        <div class="grow"><label class="f">Cena po jedinici</label><input id="f-price" inputmode="decimal"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="f-save">Sačuvaj</button>
+        <button class="btn" id="f-cancel">Otkaži</button>
+      </div>
+    </div>
+    <div class="muted" id="ing-count"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Šifra</th><th>Naziv</th><th class="num">Cena</th><th class="num">Jela</th><th></th></tr></thead>
+        <tbody id="ing-table"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- UVOZ I PODESAVANJA -->
+<section id="tab-podesavanja" class="hidden">
+  <div class="card">
+    <h2>Uvoz iz Excela</h2>
+    <p class="muted" style="margin-top:0">Učitaj kalkulator (.xlsx / .xlsm). Aplikacija čita list <b>„Lista sastojaka“</b> (Code, Item, Case, Case Value) i list <b>„Recepture“</b> (Ime jela, Broj porcija, Ocis sastojka, Količina sastojaka).
+    Postojeće namirnice se ažuriraju po šifri (nove cene), a jela po nazivu.</p>
+    <label class="btn primary file-btn">Izaberi Excel fajl<input type="file" id="import-xlsx" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12,application/vnd.ms-excel,*/*"></label>
+    <div class="row" style="margin-top:10px">
+      <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="imp-recipes" checked style="width:auto"> uvezi i jela (Recepture)</label>
+    </div>
+    <div id="import-result" class="muted" style="margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Izvoz</h2>
+    <div class="row">
+      <button class="btn" id="export-prices">Cene jela po porciji (Excel)</button>
+      <button class="btn" id="export-full">Sve (Lista sastojaka + Recepture) u Excel</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Rezervna kopija</h2>
+    <p class="muted" style="margin-top:0">Prenos svih podataka između telefona i Windows računara.</p>
+    <div class="row">
+      <button class="btn primary" id="backup-export">Sačuvaj kopiju</button>
+      <label class="btn file-btn">Učitaj kopiju<input type="file" id="backup-import" accept=".json,application/json,*/*"></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Podešavanja</h2>
+    <div class="row">
+      <div class="grow"><label class="f">Valuta</label><input id="s-currency"></div>
+      <div class="grow"><label class="f">Podrazumevani udeo namirnica u ceni (%)</label><input id="s-foodcost" inputmode="decimal"></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn danger" id="wipe">Obriši sve podatke</button></div>
+  </div>
+</section>
+</main>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+"use strict";
+// ---------- Jedinice ----------
+// Cena namirnice je po kg / l / kom; u receptu se može uneti i g, ml, dl.
+const UNITS = { kg:{dim:"m",f:1}, g:{dim:"m",f:0.001}, l:{dim:"v",f:1}, dl:{dim:"v",f:0.1}, ml:{dim:"v",f:0.001}, kom:{dim:"c",f:1} };
+const UNITS_BY_DIM = { m:["kg","g"], v:["l","dl","ml"], c:["kom"] };
+function excelUnit(u){ u=String(u||"").trim().toLowerCase();
+  if(/^(kilo|kg|kilogram)/.test(u)) return "kg"; if(/^(litre|liter|litar|l|lit)/.test(u)) return "l"; return "kom"; }
+
+// ---------- Stanje ----------
+const KEY="recepti-app-v2";
+const DEFAULT_SETTINGS={currency:"din", foodcost:30};
+let S = load();
+function load(){
+  try{ const d=JSON.parse(localStorage.getItem(KEY)); if(d&&d.ingredients){ d.settings=Object.assign({},DEFAULT_SETTINGS,d.settings); return d; } }catch(e){}
+  return {ingredients:[], recipes:[], settings:{...DEFAULT_SETTINGS}};
+}
+let saveTimer;
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveNow,250); }
+function saveNow(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Greška pri čuvanju!"); } }
+window.addEventListener("pagehide",saveNow); document.addEventListener("visibilitychange",()=>{ if(document.hidden) saveNow(); });
+
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const num=v=>{ if(typeof v==="number") return v; const s=String(v??"").trim().replace(/\s/g,""); if(!s) return NaN;
+  const t = s.includes(",") ? s.replace(/\./g,"").replace(",",".") : s; return Number(t); };
+const fmt=(n,d=2)=>isFinite(n)? n.toLocaleString("sr-RS",{minimumFractionDigits:d,maximumFractionDigits:d}) : "–";
+const fmtQ=n=>isFinite(n)? n.toLocaleString("sr-RS",{maximumFractionDigits:3}) : "–";
+const money=n=>isFinite(n)? fmt(n)+" "+S.settings.currency : "–";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const $=id=>document.getElementById(id);
+const low=s=>String(s??"").trim().toLowerCase();
+function toast(msg){ const t=document.createElement("div"); t.className="toast"; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),2600); }
+
+let ingById=new Map();
+function reindex(){ ingById=new Map(S.ingredients.map(i=>[i.id,i])); }
+reindex();
+const ingLabel=i=>i.code? `${i.name} [${i.code}]` : i.name;
+function findIng(text){
+  const t=low(text); if(!t) return null;
+  const m=t.match(/\[(\d+)\]\s*$/); if(m){ const byC=S.ingredients.find(i=>String(i.code)===m[1]); if(byC) return byC; }
+  return S.ingredients.find(i=>String(i.code)===t) || S.ingredients.find(i=>low(i.name)===t) || null;
+}
+
+function lineCost(l){
+  const ing=ingById.get(l.ingId);
+  if(!ing) return {cost:NaN, err:"namirnica nije u listi sastojaka"};
+  const lu=UNITS[l.unit], iu=UNITS[ing.unit];
+  if(!lu || lu.dim!==iu.dim) return {cost:NaN, ing, err:"jedinica ne odgovara namirnici"};
+  const q=num(l.qty); if(!isFinite(q)) return {cost:NaN, ing, err:"unesi količinu"};
+  if(!isFinite(ing.price)) return {cost:NaN, ing, err:"namirnica nema cenu"};
+  return {cost:q*lu.f*ing.price, ing};
+}
+function recipeCost(r){
+  let total=0, errors=0;
+  for(const l of r.lines){ if(!l.ingId && !l.name) continue; const c=lineCost(l); if(isFinite(c.cost)) total+=c.cost; else errors++; }
+  const p=num(r.portions), per = p>0 ? total/p : NaN;
+  const fc = num(r.foodcost ?? S.settings.foodcost);
+  return {total, per, sell: fc>0 ? per/(fc/100) : NaN, errors};
+}
+
+// ---------- Tabovi ----------
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function showTab(t){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  ["jela","namirnice","podesavanja"].forEach(x=>$("tab-"+x).classList.toggle("hidden",x!==t));
+  if(t==="jela"){ cleanupEmpty(); renderRecipeList(); } if(t==="namirnice") renderIngTable(); if(t==="podesavanja") renderSettings();
+  window.scrollTo(0,0);
+}
+
+// ---------- Jela: lista ----------
+$("recipe-search").oninput=renderRecipeList;
+function renderRecipeList(){
+  showRecipeView(false);
+  const q=low($("recipe-search").value);
+  const list=S.recipes.filter(r=>!q||low(r.name).includes(q)||low(r.cat).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"sr"));
+  $("recipe-list").innerHTML = list.length ? list.map(r=>{ const c=recipeCost(r);
+    return `<div class="card list-item" data-id="${r.id}"><div><h3>${esc(r.name||"(bez naziva)")}</h3>
+      <div class="muted">${r.cat?esc(r.cat)+" · ":""}${fmtQ(num(r.portions))} porcija · ukupno ${money(c.total)}${c.errors?` · <span class="warn">${c.errors} sastojak bez cene</span>`:""}</div></div>
+      <div class="price">${money(c.per)}<div class="muted" style="font-weight:400">po porciji</div></div></div>`; }).join("")
+    : `<div class="card muted">${S.recipes.length?"Nema rezultata.":"Još nema jela. Uvezi Excel kalkulator u kartici „Uvoz / Izvoz“ ili klikni „+ Novo jelo“."}</div>`;
+  document.querySelectorAll("#recipe-list .list-item").forEach(el=>el.onclick=()=>openRecipe(el.dataset.id));
+}
+function showRecipeView(edit){ $("recipe-list-view").classList.toggle("hidden",edit); $("recipe-edit-view").classList.toggle("hidden",!edit); }
+
+// ---------- Jela: izmena ----------
+let cur=null;
+$("new-recipe").onclick=()=>{ const r={id:uid(),name:"",cat:"",portions:10,lines:[{ingId:null,name:"",qty:"",unit:"kg"}],steps:"",foodcost:null};
+  S.recipes.push(r); save(); openRecipe(r.id); setTimeout(()=>$("r-name").focus(),50); };
+$("back-to-list").onclick=()=>{ cleanupEmpty(); renderRecipeList(); };
+$("print-recipe").onclick=()=>window.print();
+$("dup-recipe").onclick=()=>{ const r=JSON.parse(JSON.stringify(cur)); r.id=uid(); r.name+=" (kopija)"; S.recipes.push(r); save(); openRecipe(r.id); toast("Napravljena kopija"); };
+$("delete-recipe").onclick=()=>{ if(!confirm("Obrisati jelo „"+(cur.name||"")+"“?")) return;
+  S.recipes=S.recipes.filter(r=>r!==cur); cur=null; save(); renderRecipeList(); };
+function cleanupEmpty(){ if(cur && !cur.name.trim() && !cur.lines.some(l=>l.ingId||l.name)){ S.recipes=S.recipes.filter(r=>r!==cur); save(); } cur=null; }
+
+function openRecipe(id){
+  cur=S.recipes.find(r=>r.id===id); if(!cur) return;
+  showRecipeView(true);
+  $("r-name").value=cur.name; $("r-cat").value=cur.cat||""; $("r-portions").value=cur.portions;
+  $("r-steps").value=cur.steps||""; $("r-foodcost").value=cur.foodcost??""; $("r-foodcost").placeholder=S.settings.foodcost;
+  $("ing-names").innerHTML=S.ingredients.map(i=>`<option value="${esc(ingLabel(i))}">`).join("");
+  renderLines(); window.scrollTo(0,0);
+}
+[["r-name","name"],["r-cat","cat"],["r-portions","portions"],["r-steps","steps"],["r-foodcost","foodcost"]].forEach(([id,k])=>{
+  $(id).oninput=e=>{ let v=e.target.value; if(k==="foodcost") v = v.trim()===""?null:v; cur[k]=v; save(); updateCalc(); };
+});
+const unitOptions=(dim,sel)=>(dim?UNITS_BY_DIM[dim]:Object.keys(UNITS)).map(k=>`<option value="${k}"${k===sel?" selected":""}>${k}</option>`).join("");
+
+function renderLines(){
+  $("ing-rows").innerHTML = cur.lines.map((l,i)=>{ const ing=ingById.get(l.ingId);
+    return `<div class="ing-row" data-i="${i}">
+    <input list="ing-names" placeholder="Naziv ili šifra" value="${esc(ing?ingLabel(ing):l.name)}" data-k="name">
+    <input inputmode="decimal" placeholder="Količina" value="${esc(l.qty)}" data-k="qty">
+    <select data-k="unit">${unitOptions(ing?UNITS[ing.unit].dim:null,l.unit)}</select>
+    <button class="x noprint" title="Ukloni" data-del>×</button>
+    <div class="info" data-info></div></div>`; }).join("");
+  document.querySelectorAll("#ing-rows .ing-row").forEach(row=>{
+    const i=+row.dataset.i, sel=row.querySelector("select");
+    row.querySelectorAll("[data-k]").forEach(inp=>{
+      const h=()=>{ const l=cur.lines[i];
+        if(inp.dataset.k==="name"){ const ing=findIng(inp.value); l.name=inp.value; l.ingId=ing?ing.id:null;
+          if(ing){ const dim=UNITS[ing.unit].dim; if(UNITS[l.unit].dim!==dim) l.unit=ing.unit; sel.innerHTML=unitOptions(dim,l.unit);
+            if(inp.value!==ingLabel(ing) && inp.matches(":focus")===false) inp.value=ingLabel(ing); } }
+        else l[inp.dataset.k]=inp.value;
+        save(); updateCalc(); };
+      inp.oninput=h; inp.onchange=h;
+    });
+    row.querySelector("[data-del]").onclick=()=>{ cur.lines.splice(i,1); save(); renderLines(); };
+  });
+  updateCalc();
+}
+$("add-ing").onclick=()=>{ cur.lines.push({ingId:null,name:"",qty:"",unit:"kg"}); save(); renderLines();
+  const rows=document.querySelectorAll("#ing-rows input[data-k=name]"); rows[rows.length-1].focus(); };
+
+function updateCalc(){
+  const p=num(cur.portions);
+  document.querySelectorAll("#ing-rows .ing-row").forEach(row=>{
+    const l=cur.lines[+row.dataset.i], el=row.querySelector("[data-info]");
+    if(!l.ingId && !l.name){ el.textContent=""; return; }
+    const c=lineCost(l);
+    if(isFinite(c.cost)){
+      const norm = p>0 ? num(l.qty)/p : NaN;
+      el.textContent=`${money(c.ing.price)}/${c.ing.unit} → ${money(c.cost)} · normativ po porciji ${fmtQ(norm)} ${l.unit} (${money(c.cost/p)})`;
+    } else {
+      el.innerHTML=`<span class="warn">⚠ ${esc(c.err)}</span>`+(!c.ing?` <button class="btn sm noprint" data-addname>Dodaj u listu</button>`:"");
+      const b=el.querySelector("[data-addname]"); if(b) b.onclick=()=>{ showTab("namirnice"); openIngForm(null,l.name); };
+    }
+  });
+  const c=recipeCost(cur);
+  $("c-total").textContent=money(c.total); $("c-portion").textContent=money(c.per); $("c-sell").textContent=money(c.sell);
+  $("c-warn").textContent = c.errors ? `Pažnja: ${c.errors} sastojak nije uračunat u cenu.` : "";
+}
+
+// ---------- Namirnice ----------
+$("ing-search").oninput=renderIngTable;
+function usageCounts(){ const m=new Map(); for(const r of S.recipes) for(const id of new Set(r.lines.map(l=>l.ingId))) if(id) m.set(id,(m.get(id)||0)+1); return m; }
+function renderIngTable(){
+  const q=low($("ing-search").value), used=usageCounts();
+  const all=S.ingredients.filter(i=>!q||low(i.name).includes(q)||String(i.code).includes(q)).sort((a,b)=>a.name.localeCompare(b.name,"sr"));
+  const list=all.slice(0,300);
+  $("ing-count").textContent = `${S.ingredients.length} namirnica` + (all.length>list.length?` · prikazano prvih ${list.length}, suzi pretragu`:"");
+  $("ing-table").innerHTML = list.length ? list.map(i=>`<tr><td class="muted">${esc(i.code||"")}</td><td>${esc(i.name)}</td>
+      <td class="num"><b>${money(i.price)}</b>/${i.unit}</td><td class="num">${used.get(i.id)||""}</td>
+      <td class="num"><button class="btn sm" data-edit="${i.id}">Izmeni</button> <button class="x" data-rm="${i.id}" title="Obriši">×</button></td></tr>`).join("")
+    : `<tr><td colspan="5" class="muted">Lista je prazna. Uvezi Excel ili dodaj ručno.</td></tr>`;
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openIngForm(b.dataset.edit));
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ const i=ingById.get(b.dataset.rm), n=used.get(i.id)||0;
+    if(!confirm(`Obrisati „${i.name}“?`+(n?` Koristi se u ${n} jela — ta jela neće imati cenu za ovaj sastojak.`:""))) return;
+    S.ingredients=S.ingredients.filter(x=>x!==i); reindex(); save(); renderIngTable(); });
+}
+let editingIng=null;
+$("new-ing").onclick=()=>openIngForm(null);
+function openIngForm(id,name){
+  editingIng=id?ingById.get(id):null; const i=editingIng||{code:"",name:name||"",unit:"kg",price:""};
+  $("ing-form-title").textContent=editingIng?"Izmena namirnice":"Nova namirnica";
+  $("f-code").value=i.code||""; $("f-name").value=i.name; $("f-unit").value=i.unit; $("f-price").value=isFinite(i.price)?String(i.price).replace(".",","):"";
+  $("ing-form").classList.remove("hidden"); $("ing-form").scrollIntoView({behavior:"smooth",block:"center"}); $(name?"f-price":"f-name").focus();
+}
+$("f-cancel").onclick=()=>$("ing-form").classList.add("hidden");
+$("f-save").onclick=()=>{
+  const d={code:$("f-code").value.trim(), name:$("f-name").value.trim(), unit:$("f-unit").value, price:num($("f-price").value)};
+  if(!d.name) return toast("Unesi naziv"); if(!(d.price>=0)) return toast("Unesi cenu");
+  if(d.code && S.ingredients.some(i=>i!==editingIng && String(i.code)===d.code)) return toast("Ta šifra već postoji");
+  if(editingIng) Object.assign(editingIng,d); else { d.id=uid(); S.ingredients.push(d); }
+  reindex(); relinkByName(); save(); $("ing-form").classList.add("hidden"); renderIngTable(); toast("Sačuvano");
+};
+// sastojci upisani pre nego što je namirnica postojala
+function relinkByName(){ for(const r of S.recipes) for(const l of r.lines) if(!l.ingId && l.name){ const i=findIng(l.name); if(i){ l.ingId=i.id; } } }
+
+// ---------- Uvoz iz Excela ----------
+const normH=s=>low(s).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"dj").replace(/\s+/g," ");
+function sheetRows(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false}); }
+function findCols(header, spec, loose){ const h=header.map(normH), out={};
+  for(const [k,alts] of Object.entries(spec)){ out[k]=h.findIndex(x=>alts.some(a=>x===a)); if(out[k]<0&&loose) out[k]=h.findIndex(x=>alts.some(a=>x.startsWith(a))); }
+  return out; }
+// Traži list čije zaglavlje sadrži tražene kolone; najbolji je onaj sa najviše tačnih pogodaka (prvi alias = najjači).
+function locate(wb, spec, required){
+  let best=null;
+  for(const name of wb.SheetNames){ const rows=sheetRows(wb.Sheets[name]);
+    for(let r=0;r<Math.min(rows.length,10);r++){
+      for(const loose of [false,true]){
+        const c=findCols(rows[r]||[],spec,loose); if(!required.every(k=>c[k]>=0)) continue;
+        const h=(rows[r]||[]).map(normH);
+        const score=Object.entries(spec).reduce((s,[k,alts])=>s+(c[k]>=0?(h[c[k]]===alts[0]?3:1):0),0)-(loose?0.5:0);
+        if(!best||score>best.score) best={name,rows,hr:r,c,score};
+      } } }
+  return best;
+}
+$("import-xlsx").onchange=e=>{
+  const f=e.target.files[0]; if(!f) return; e.target.value="";
+  const fr=new FileReader();
+  fr.onload=()=>{ try{ importWorkbook(XLSX.read(new Uint8Array(fr.result),{type:"array"})); }catch(err){ console.error(err); toast("Ne mogu da pročitam fajl: "+err.message); } };
+  fr.readAsArrayBuffer(f);
+};
+function importWorkbook(wb){
+  const L=locate(wb,{code:["code","ocis","sifra"],name:["item","naziv","namirnica","ime sastojka"],unit:["case","jedinica mere","jedinica"],price:["case value","cena po jedinici","cena"]},["name","price"]);
+  if(!L) return toast("Nisam našao listu sastojaka (kolone Code / Item / Case / Case Value)");
+  let added=0, updated=0;
+  const byCode=new Map(S.ingredients.filter(i=>i.code).map(i=>[String(i.code),i]));
+  for(const row of L.rows.slice(L.hr+1)){
+    const name=String(row[L.c.name]??"").trim(), price=num(row[L.c.price]); if(!name||!isFinite(price)) continue;
+    const code=L.c.code>=0 && row[L.c.code]!=null ? String(row[L.c.code]).trim() : "";
+    const d={code,name,unit:L.c.unit>=0?excelUnit(row[L.c.unit]):"kg",price};
+    const ex=(code&&byCode.get(code)) || (!code && findIng(name));
+    if(ex){ Object.assign(ex,d); updated++; } else { d.id=uid(); S.ingredients.push(d); if(code) byCode.set(code,d); added++; }
+  }
+  reindex();
+  let msg=`Lista sastojaka („${L.name}“): ${added} novih, ${updated} ažurirano.`;
+
+  if($("imp-recipes").checked){
+    const R=locate(wb,{dish:["ime jela","naziv jela"],portions:["broj porcija"],code:["ocis sastojka","ocis","sifra"],qty:["kolicina sastojaka","kolicina"]},["dish","code","qty"]);
+    if(R){
+      const dishes=new Map(); let missing=0;
+      for(const row of R.rows.slice(R.hr+1)){
+        const dish=String(row[R.c.dish]??"").trim(); if(!dish) continue;
+        const code=String(row[R.c.code]??"").trim(), qty=num(row[R.c.qty]);
+        if(!dishes.has(low(dish))) dishes.set(low(dish),{name:dish,portions:num(row[R.c.portions])||1,lines:[]});
+        if(!code && !isFinite(qty)) continue;
+        const ing=byCode.get(code); if(!ing) missing++;
+        dishes.get(low(dish)).lines.push({ingId:ing?ing.id:null,name:ing?ing.name:code,qty:isFinite(qty)?String(qty):"",unit:ing?ing.unit:"kg"});
+      }
+      let rn=0, ru=0;
+      for(const d of dishes.values()){
+        const ex=S.recipes.find(r=>low(r.name)===low(d.name));
+        if(ex){ ex.portions=d.portions; ex.lines=d.lines; ru++; } else { S.recipes.push({id:uid(),cat:"",steps:"",foodcost:null,...d}); rn++; }
+      }
+      msg+=` Jela („${R.name}“): ${rn} novih, ${ru} ažurirano.`+(missing?` ${missing} sastojaka sa nepoznatom šifrom.`:"");
+    } else msg+=" List „Recepture“ nije pronađen.";
+  }
+  save(); $("import-result").textContent=msg; toast("Uvoz završen");
+}
+
+// ---------- Izvoz ----------
+function saveFile(name, data, mime){
+  if(window.AndroidBridge){ // Android aplikacija
+    const b64 = typeof data==="string" ? btoa(unescape(encodeURIComponent(data))) : bytesToB64(data);
+    AndroidBridge.saveFile(name, b64, mime); return;
+  }
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:mime})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+function bytesToB64(u8){ let s=""; for(let i=0;i<u8.length;i+=0x8000) s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000)); return btoa(s); }
+function saveWorkbook(name, sheets){
+  const wb=XLSX.utils.book_new();
+  for(const [title,aoa,widths] of sheets){ const ws=XLSX.utils.aoa_to_sheet(aoa); if(widths) ws["!cols"]=widths.map(w=>({wch:w})); XLSX.utils.book_append_sheet(wb,ws,title); }
+  saveFile(name, new Uint8Array(XLSX.write(wb,{bookType:"xlsx",type:"array"})), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+const today=()=>new Date().toISOString().slice(0,10);
+$("export-prices").onclick=()=>{
+  const rows=[["Naziv jela","Broj porcija","Cena koštanja","Cena po porciji","Predlog prodajne cene"]];
+  for(const r of [...S.recipes].sort((a,b)=>a.name.localeCompare(b.name,"sr"))){ const c=recipeCost(r); rows.push([r.name,num(r.portions),round(c.total),round(c.per),round(c.sell)]); }
+  saveWorkbook(`cene-jela-${today()}.xlsx`,[["Cene jela po porciji",rows,[34,12,14,14,20]]]);
+};
+$("export-full").onclick=()=>{
+  const XU={kg:"Kilo",l:"Litre",kom:"Each"};
+  const ing=[["Code","Item","Case","Case Value"]].concat(S.ingredients.map(i=>[i.code||"",i.name,XU[i.unit],i.price]));
+  const rec=[["Ime jela","Broj porcija","Ocis sastojka","Ime Sastojka","Jedinica mere","Cena","Količina sastojaka","Cena koštanja","Cena koštanja po porciji","Normativ za porciju"]];
+  for(const r of S.recipes) for(const l of r.lines){ const i=ingById.get(l.ingId), c=lineCost(l), p=num(r.portions);
+    const q=num(l.qty)*(UNITS[l.unit]?.f??1);   // u osnovnoj jedinici (kg/l/kom), kao u kalkulatoru
+    rec.push([r.name,p,i?.code||"",i?.name||l.name,i?XU[i.unit]:l.unit,i?.price??"",round(q,4),round(c.cost),round(c.cost/p),round(q/p,4)]); }
+  saveWorkbook(`kalkulator-${today()}.xlsx`,[["Lista sastojaka",ing,[12,34,8,12]],["Recepture",rec,[28,10,12,30,8,10,10,12,12,12]]]);
+};
+const round=(n,d=2)=>isFinite(n)? Math.round(n*10**d)/10**d : "";
+
+// ---------- Podešavanja / kopija ----------
+function renderSettings(){ $("s-currency").value=S.settings.currency; $("s-foodcost").value=S.settings.foodcost; }
+$("s-currency").oninput=e=>{ S.settings.currency=e.target.value; save(); };
+$("s-foodcost").oninput=e=>{ const v=num(e.target.value); if(v>0){ S.settings.foodcost=v; save(); } };
+$("backup-export").onclick=()=>saveFile(`recepti-kopija-${today()}.json`, JSON.stringify(S), "application/json");
+$("backup-import").onchange=e=>{ const f=e.target.files[0]; if(!f) return; e.target.value="";
+  const fr=new FileReader(); fr.onload=()=>{ try{ const d=JSON.parse(fr.result); if(!d.ingredients||!d.recipes) throw 0;
+    if(!confirm(`Učitati ${d.recipes.length} jela i ${d.ingredients.length} namirnica? Trenutni podaci će biti zamenjeni.`)) return;
+    d.settings=Object.assign({},DEFAULT_SETTINGS,d.settings); S=d; reindex(); saveNow(); renderSettings(); toast("Kopija učitana");
+  }catch(err){ toast("Neispravan fajl"); } }; fr.readAsText(f); };
+$("wipe").onclick=()=>{ if(confirm("Obrisati SVA jela i namirnice?")&&confirm("Sigurno? Ovo se ne može vratiti.")){ S={ingredients:[],recipes:[],settings:S.settings}; reindex(); saveNow(); toast("Obrisano"); } };
+
+// Android dugme „Nazad“: vraća true ako je aplikacija sama obradila korak nazad
+window.androidBack=()=>{
+  if(!$("recipe-edit-view").classList.contains("hidden")){ cleanupEmpty(); renderRecipeList(); return true; }
+  if($("tab-jela").classList.contains("hidden")){ showTab("jela"); return true; }
+  return false;
+};
+
+renderRecipeList();
+</script>
+</body>
+</html>
